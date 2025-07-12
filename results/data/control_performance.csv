@@ -1,0 +1,4 @@
+Controller,Success,Tracking_Time_s,Max_Lateral_Error_m,RMS_Lateral_Error_m,Control_Smoothness
+Pure_Pursuit,✅,0.008,0.467,0.2,0.037
+Stanley,✅,0.016,0.464,0.22,0.007
+PID,✅,0.013,0.412,0.195,0.017

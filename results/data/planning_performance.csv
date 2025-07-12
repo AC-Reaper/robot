@@ -1,0 +1,5 @@
+Algorithm,Success,Planning_Time_s,Path_Length_m,Nodes_Explored
+A*,✅,0.208,14.258,311
+RRT,✅,0.156,14.773,133
+Dijkstra,✅,0.375,14.182,601
+Potential_Field,✅,0.032,15.47,153

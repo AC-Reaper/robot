@@ -1,0 +1,5 @@
+algorithm,success,planning_time,path_length,smoothness,clearance,nodes_explored,iterations
+A*,True,0.185,14.258,0.323,0.224,311,311
+RRT,True,0.163,14.773,0.451,0.351,133,152
+Dijkstra,True,0.347,14.182,0.247,0.2,601,729
+Potential Field,True,0.018,15.47,0.045,0.595,153,153

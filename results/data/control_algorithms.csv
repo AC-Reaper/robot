@@ -1,0 +1,4 @@
+controller,success,tracking_time,max_lateral_error,rms_lateral_error,max_heading_error,rms_heading_error,control_smoothness
+Pure Pursuit,True,0.004,0.467,0.2,0.785,0.296,0.037
+Simple_Stanley,True,0.011,0.464,0.22,0.785,0.305,0.007
+Simple_PID,True,0.013,0.412,0.195,0.802,0.312,0.017
