@@ -143,8 +143,9 @@ class DijkstraPlanner(BasePlanner):
             if (new_x >= 0 and new_x <= environment.width and 
                 new_y >= 0 and new_y <= environment.height):
                 
-                # 检查碰撞
-                if not environment.is_collision((new_x, new_y)):
+                # 检查碰撞（包括线段碰撞）
+                if (not environment.is_collision((new_x, new_y)) and 
+                    not environment.is_line_collision((node.x, node.y), (new_x, new_y))):
                     neighbor = Node(new_x, new_y)
                     neighbors.append(neighbor)
         
