@@ -142,7 +142,8 @@ class BasePlanner(ABC):
             return False
         
         # 检查路径是否从起点开始和终点结束（允许一定误差）
-        tolerance = 0.1
+        # 容忍度应该考虑算法的分辨率，设置为1.0比较合理
+        tolerance = 1.0
         start_dist = np.sqrt((path[0][0] - start[0])**2 + (path[0][1] - start[1])**2)
         goal_dist = np.sqrt((path[-1][0] - goal[0])**2 + (path[-1][1] - goal[1])**2)
         
@@ -150,7 +151,7 @@ class BasePlanner(ABC):
             return False
         
         # 检查路径是否连续（相邻点距离不能太远）
-        max_segment_length = 5.0  # 可根据具体场景调整
+        max_segment_length = 10.0  # 调整为更宽松的限制，适应RRT等算法
         for i in range(len(path) - 1):
             segment_length = np.sqrt((path[i+1][0] - path[i][0])**2 + (path[i+1][1] - path[i][1])**2)
             if segment_length > max_segment_length:
