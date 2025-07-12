@@ -93,7 +93,7 @@ class BasePlanner(ABC):
         带性能统计的路径规划
         
         Returns:
-            (路径, 性能指标)
+            (路径, 性能指标) - 如果规划失败，路径为None
         """
         # 重置指标
         self.metrics = PlannerMetrics()
@@ -109,20 +109,63 @@ class BasePlanner(ABC):
             # 记录结束时间
             self.metrics.planning_time = time.time() - start_time
             
-            # 计算路径指标
-            if path and len(path) >= 2:
+            # 验证路径有效性
+            if self._is_valid_path(path, start, goal, environment):
                 self.metrics.success = True
                 self.metrics.calculate_path_metrics(path, environment)
+                return path, self.metrics
             else:
                 self.metrics.success = False
+                return None, self.metrics
                 
         except Exception as e:
             print(f"Planning failed: {e}")
             self.metrics.planning_time = time.time() - start_time
             self.metrics.success = False
-            path = []
+            return None, self.metrics
+    
+    def _is_valid_path(self, path: List[Tuple[float, float]], start: Tuple[float, float], 
+                      goal: Tuple[float, float], environment) -> bool:
+        """
+        验证路径有效性
         
-        return path, self.metrics
+        Args:
+            path: 路径点列表
+            start: 起点
+            goal: 终点
+            environment: 环境对象
+            
+        Returns:
+            路径是否有效
+        """
+        if not path or len(path) < 2:
+            return False
+        
+        # 检查路径是否从起点开始和终点结束（允许一定误差）
+        tolerance = 0.1
+        start_dist = np.sqrt((path[0][0] - start[0])**2 + (path[0][1] - start[1])**2)
+        goal_dist = np.sqrt((path[-1][0] - goal[0])**2 + (path[-1][1] - goal[1])**2)
+        
+        if start_dist > tolerance or goal_dist > tolerance:
+            return False
+        
+        # 检查路径是否连续（相邻点距离不能太远）
+        max_segment_length = 5.0  # 可根据具体场景调整
+        for i in range(len(path) - 1):
+            segment_length = np.sqrt((path[i+1][0] - path[i][0])**2 + (path[i+1][1] - path[i][1])**2)
+            if segment_length > max_segment_length:
+                return False
+        
+        # 检查路径是否与障碍物碰撞
+        try:
+            for i in range(len(path) - 1):
+                if environment.is_line_collision(path[i], path[i+1]):
+                    return False
+        except AttributeError:
+            # 如果环境没有碰撞检测方法，只进行基本验证
+            pass
+        
+        return True
     
     def visualize_planning_process(self, environment, start, goal, ax=None, step=-1):
         """
@@ -151,6 +194,64 @@ class BasePlanner(ABC):
     def _visualize_algorithm_specific(self, ax, step):
         """算法特定的可视化（由子类重写）"""
         pass
+    
+    def visualize_path(self, path: List[Tuple[float, float]], environment, 
+                      start: Tuple[float, float], goal: Tuple[float, float], 
+                      ax=None, show_details=True):
+        """
+        可视化路径结果
+        
+        Args:
+            path: 路径点列表（如果为None表示规划失败）
+            environment: 环境对象
+            start: 起点
+            goal: 终点
+            ax: matplotlib轴对象
+            show_details: 是否显示详细信息
+        """
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+        
+        # 绘制环境
+        environment.visualize(ax=ax, show_grid=False)
+        
+        # 绘制起点和终点
+        ax.plot(start[0], start[1], 'go', markersize=10, label='Start', zorder=5)
+        ax.plot(goal[0], goal[1], 'ro', markersize=10, label='Goal', zorder=5)
+        
+        if path is None:
+            # 路径规划失败
+            ax.set_title(f'{self.name} - Path Planning FAILED', color='red')
+            ax.text(0.5, 0.95, 'No valid path found!', 
+                   transform=ax.transAxes, ha='center', va='top',
+                   bbox=dict(boxstyle='round', facecolor='red', alpha=0.7),
+                   fontsize=12, color='white', weight='bold')
+        else:
+            # 绘制路径
+            if len(path) >= 2:
+                path_x = [p[0] for p in path]
+                path_y = [p[1] for p in path]
+                ax.plot(path_x, path_y, 'b-', linewidth=2, label='Path', zorder=4)
+                ax.plot(path_x, path_y, 'bo', markersize=3, zorder=4)
+            
+            # 设置标题和显示信息
+            success_text = "SUCCESS" if self.metrics.success else "FAILED"
+            title_color = 'green' if self.metrics.success else 'red'
+            ax.set_title(f'{self.name} - Path Planning {success_text}', color=title_color)
+            
+            if show_details and self.metrics.success:
+                info_text = (f'Time: {self.metrics.planning_time:.3f}s\n'
+                           f'Length: {self.metrics.path_length:.2f}\n'
+                           f'Nodes: {self.metrics.num_nodes_explored}')
+                ax.text(0.02, 0.98, info_text, transform=ax.transAxes, 
+                       verticalalignment='top', fontsize=10,
+                       bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.7))
+        
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        ax.set_aspect('equal')
+        
+        return ax
     
     def get_planning_statistics(self) -> Dict[str, Any]:
         """获取规划统计信息"""

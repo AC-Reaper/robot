@@ -378,7 +378,7 @@ def test_pid():
         # 规划路径
         path, _ = planner.plan_with_metrics(env.start, env.goal, env)
         
-        if not path:
+        if path is None or not path:
             print("Path planning failed!")
             return
         
