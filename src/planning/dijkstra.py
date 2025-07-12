@@ -31,6 +31,54 @@ class DijkstraPlanner(BasePlanner):
         # 规划过程可视化数据
         self.visited_nodes = []
         self.current_distances = {}
+    
+    def _find_valid_nearby_points(self, point: Tuple[float, float], environment) -> List[Tuple[float, float]]:
+        """找到点附近的有效网格点"""
+        x, y = point
+        candidates = []
+        
+        # 生成点周围的网格候选点
+        for dx in [-self.resolution, 0, self.resolution]:
+            for dy in [-self.resolution, 0, self.resolution]:
+                # 标准网格对齐
+                grid_x = round((x + dx) / self.resolution) * self.resolution
+                grid_y = round((y + dy) / self.resolution) * self.resolution
+                
+                # 检查边界
+                if (grid_x >= 0 and grid_x <= environment.width and 
+                    grid_y >= 0 and grid_y <= environment.height):
+                    
+                    # 检查碰撞
+                    if not environment.is_collision((grid_x, grid_y)):
+                        candidates.append((grid_x, grid_y))
+        
+        # 如果没有找到候选点，添加原始点本身（如果有效）
+        if not candidates and not environment.is_collision(point):
+            candidates.append(point)
+        
+        return candidates
+    
+    def _connect_to_original_points(self, path: List[Tuple[float, float]], environment) -> List[Tuple[float, float]]:
+        """将路径连接到原始起点和终点"""
+        if not path:
+            return path
+        
+        final_path = []
+        
+        # 添加到原始起点的连接
+        if hasattr(self, 'original_start'):
+            if not environment.is_line_collision(self.original_start, path[0]):
+                final_path.append(self.original_start)
+        
+        # 添加规划的路径
+        final_path.extend(path)
+        
+        # 添加到原始终点的连接
+        if hasattr(self, 'original_goal'):
+            if not environment.is_line_collision(path[-1], self.original_goal):
+                final_path.append(self.original_goal)
+        
+        return final_path
         
     def plan(self, start: Tuple[float, float], goal: Tuple[float, float], 
              environment) -> List[Tuple[float, float]]:
@@ -41,24 +89,29 @@ class DijkstraPlanner(BasePlanner):
         self.visited_nodes.clear()
         self.current_distances.clear()
         
-        # 将起点和终点对齐到网格
-        start_x = round(start[0] / self.resolution) * self.resolution
-        start_y = round(start[1] / self.resolution) * self.resolution
-        goal_x = round(goal[0] / self.resolution) * self.resolution
-        goal_y = round(goal[1] / self.resolution) * self.resolution
+        # 找到起点和终点附近最好的网格点
+        start_candidates = self._find_valid_nearby_points(start, environment)
+        goal_candidates = self._find_valid_nearby_points(goal, environment)
+        
+        if not start_candidates:
+            print("No valid start position found!")
+            return []
+        
+        if not goal_candidates:
+            print("No valid goal position found!")
+            return []
+        
+        # 选择距离原始点最近的有效点
+        start_x, start_y = min(start_candidates, key=lambda p: (p[0]-start[0])**2 + (p[1]-start[1])**2)
+        goal_x, goal_y = min(goal_candidates, key=lambda p: (p[0]-goal[0])**2 + (p[1]-goal[1])**2)
         
         # 创建起点和终点节点
         start_node = Node(start_x, start_y)
         goal_node = Node(goal_x, goal_y)
         
-        # 检查起点和终点是否有效
-        if environment.is_collision((start_x, start_y)):
-            print("Start position is in collision!")
-            return []
-        
-        if environment.is_collision((goal_x, goal_y)):
-            print("Goal position is in collision!")
-            return []
+        # 存储原始目标用于后处理
+        self.original_start = start
+        self.original_goal = goal
         
         # 初始化距离字典和优先队列
         distances: Dict[Node, float] = {}
@@ -90,11 +143,11 @@ class DijkstraPlanner(BasePlanner):
             
             # 检查是否到达目标
             if self._nodes_equal(current_node, goal_node):
-                # 重构路径
+                # 重构路径并连接到原始目标
                 path = self._reconstruct_path_dijkstra(current_node, previous)
                 self.metrics.num_nodes_explored = len(visited)
                 self.metrics.iterations = iteration
-                return path
+                return self._connect_to_original_points(path, environment)
             
             # 获取邻居节点
             neighbors = self._get_neighbors(current_node, environment)
